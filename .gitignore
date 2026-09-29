@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+outputs/
+snapshots/
+archive_frames/
+*.mp4
+test_image/
+*_positions.txt

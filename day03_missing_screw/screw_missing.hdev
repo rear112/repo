@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="25.11.0.0">
+<procedure name="main">
+<interface/>
+<body>
+<c>* ============================================================</c>
+<c>* 螺丝缺失检测 - Halcon 完整版</c>
+<c>* 功能：提取模板坐标 → 批量检测缺件 → 统一输出结果</c>
+<c>* ============================================================</c>
+<c></c>
+<c>* ========== 第一部分：提取模板坐标 ==========</c>
+<l>read_image(Image, 'E://jiqivison//day03//outputs//board_template.png')</l>
+<l>rgb1_to_gray(Image, GrayImage)</l>
+<l>gauss_filter(GrayImage, ImageGauss, 5)</l>
+<l>binary_threshold(ImageGauss, Region, 'max_separability', 'light', UsedThreshold)</l>
+<l>connection(Region, ConnectedRegions)</l>
+<l>area_center(ConnectedRegions, Area, Row, Column)</l>
+<l>count_obj(ConnectedRegions, NumRegions)</l>
+<l>select_shape(ConnectedRegions, ScrewRegions, 'area', 'and', 2000, 3000)</l>
+<l>count_obj(ScrewRegions, NumScrews)</l>
+<l>dev_get_window(WindowHandle)</l>
+<c></c>
+<c>* 编码 Row 和 Col，按编码值排序</c>
+<l>SortKey := Row * 10000 + Column</l>
+<l>tuple_sort_index(SortKey, FinalIndices)</l>
+<c></c>
+<l>RowFinal := Row[FinalIndices]</l>
+<l>ColFinal := Column[FinalIndices]</l>
+<c></c>
+<l>write_tuple(RowFinal, 'row_positions.txt')</l>
+<l>write_tuple(ColFinal, 'col_positions.txt')</l>
+<c></c>
+<c>* ========== 第二部分：批量检测缺件 ==========</c>
+<l>list_files('E:/jiqivison/day03/test_image', ['files', 'follow_links'], ImageFiles)</l>
+<l>tuple_regexp_select(ImageFiles, ['board_test.*\\.png$'], ImagePaths)</l>
+<c></c>
+<l>ROI_SIZE := 30</l>
+<l>AREA_THRESHOLD := 800</l>
+<l>AllResults := []</l>
+<c></c>
+<l>for i := 0 to |ImagePaths| - 1 by 1</l>
+<l>    tuple_select(ImagePaths, i, ImagePath)</l>
+<l>    read_image(ImageTest, ImagePath)</l>
+<l>    rgb1_to_gray(ImageTest, GrayTest)</l>
+<c></c>
+<l>    MissingIDs := []</l>
+<c></c>
+<l>    for j := 0 to |RowFinal| - 1 by 1</l>
+<l>        Row := RowFinal[j]</l>
+<l>        Col := ColFinal[j]</l>
+<c></c>
+<l>        Row1 := Row - ROI_SIZE</l>
+<l>        Col1 := Col - ROI_SIZE</l>
+<l>        Row2 := Row + ROI_SIZE</l>
+<l>        Col2 := Col + ROI_SIZE</l>
+<c></c>
+<l>        if (Row1 &lt; 0)</l>
+<l>            Row1 := 0</l>
+<l>        endif</l>
+<l>        if (Col1 &lt; 0)</l>
+<l>            Col1 := 0</l>
+<l>        endif</l>
+<l>        if (Row2 &gt; 599)</l>
+<l>            Row2 := 599</l>
+<l>        endif</l>
+<l>        if (Col2 &gt; 799)</l>
+<l>            Col2 := 799</l>
+<l>            disp_message(WindowHandle, '处理: ' + ImagePath, 'window', 20, 20, 'green', 'true')</l>
+<l>        endif</l>
+<c></c>
+<l>        gen_rectangle1(ROI, Row1, Col1, Row2, Col2)</l>
+<l>        reduce_domain(GrayTest, ROI, ROIGray)</l>
+<l>        threshold(ROIGray, ROIBinary, 150, 255)</l>
+<l>        area_center(ROIBinary, Area2, R, C)</l>
+<c></c>
+<l>        if (Area2 &lt; AREA_THRESHOLD)</l>
+<l>            MissingIDs := [MissingIDs, j + 1]</l>
+<l>        endif</l>
+<l>    endfor</l>
+<c></c>
+<l>    AllResults := [AllResults, ImagePath + ' 缺失: ' + MissingIDs]</l>
+<l>endfor</l>
+<c></c>
+<c>* 统一输出所有结果</c>
+<l>dev_clear_window()</l>
+<l>for i := 0 to |AllResults| - 1 by 1</l>
+<l>    disp_message(WindowHandle, AllResults[i], 'window', 20 + i*30, 20, 'red', 'true')</l>
+<l>endfor</l>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+</hdevelop>
